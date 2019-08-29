@@ -1,0 +1,85 @@
+variables:
+  CONTAINER_IMAGE: 192.168.77.133:5000/root/ci-demo-go
+  
+
+before_script:
+  - printenv
+  
+stages:
+  - build
+  - build-image
+  - deploy
+
+build:
+  stage: build
+  image: golang:1.12.6
+  script: 
+   - make build-test
+  artifacts:
+    paths:
+      - release/**
+   
+build-image-master:
+  stage: build-image
+  image: docker:latest
+  script: 
+    - docker build -t ${CONTAINER_IMAGE}:latest .
+    - docker push ${CONTAINER_IMAGE}:latest
+  only:
+    - master
+
+build-image-dev:
+  stage: build-image
+  image: docker:latest
+  script: 
+    - docker build -t ${CONTAINER_IMAGE}:dev .
+    - docker push ${CONTAINER_IMAGE}:dev
+  only:
+    refs:
+      - dev
+
+
+build-image-feature:
+  stage: build-image
+  image: docker:latest
+  script: 
+    - docker build -t ${CONTAINER_IMAGE}:feature-${CI_COMMIT_REF_NAME##feature/} .
+    - docker push ${CONTAINER_IMAGE}:feature-${CI_COMMIT_REF_NAME##feature/}
+  only:
+    refs:
+      - feature*
+
+build-image-release:
+  stage: build-image
+  image: docker:latest
+  script: 
+    - docker build -t ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME} .
+    - docker push ${CONTAINER_IMAGE}:${CI_COMMIT_REF_NAME}
+  only:
+    - tags
+      
+deploy-k8s:
+  stage: deploy
+  image:
+    name: lework/kubectl-check
+    entrypoint: ["/bin/sh", "-c"]
+  before_script:
+    - mkdir ${HOME}/.kube
+    - cp ${KUBECONFIG} ${HOME}/.kube/config
+    - |
+      if [[ $CI_COMMIT_REF_NAME == "master" ]]; then
+        tag="latest"
+      elif [[ $CI_COMMIT_REF_NAME == "dev" ]]; then
+        tag="dev"
+      elif [[ $CI_COMMIT_REF_NAME == feature* ]]; then
+        tag=${CI_COMMIT_REF_NAME##/#-}
+      else
+        tag=${CI_COMMIT_REF_NAME}
+      fi
+      sed -i "s/dev/${tag}/g" deployment.yml
+      sed -i "s/THIS_STRING_IS_REPLACED_DURING_BUILD/$(date +'%Y-%m-%y %T')/g" deployment.yml
+  script: 
+    - printenv
+    - kubectl version
+    - kubectl apply -f deployment.yml
+    - kubectl get deploy
