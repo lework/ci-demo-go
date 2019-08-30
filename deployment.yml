@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ci-demo-go
@@ -13,6 +13,10 @@ spec:
       maxSurge: 1
       maxUnavailable: 1
   minReadySeconds: 3
+  selector:
+    matchLabels:
+      app: ci-demo-go
+      environment: test
   template:
     metadata:
       labels:
