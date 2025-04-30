@@ -30,9 +30,14 @@ RUN --mount=type=cache,id=gomod,target=/go/pkg/mod \
 FROM harbor.leops.local/common/runtime/golang:debian11 AS running
 
 ARG APP_ENV=test \
-  APP=undefine
+  APP=undefine \
+  GIT_BRANCH= \
+  GIT_COMMIT_ID=
+
 ENV APP_ENV=$APP_ENV \
-  APP=$APP
+  APP=$APP \
+  GIT_BRANCH=$GIT_BRANCH \
+  GIT_COMMIT_ID=$GIT_COMMIT_ID
 
 WORKDIR /app
 
